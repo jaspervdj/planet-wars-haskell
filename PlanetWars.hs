@@ -17,7 +17,7 @@ module PlanetWars
 
       -- * Communication with the game engine
     , issueOrder
-    , finnishTurn
+    , finishTurn
 
       -- * Bots
     , bot
@@ -144,10 +144,10 @@ issueOrder :: Order  -- ^ Order to execute
 issueOrder (Order source destination ships) =
     putStrLn $ intercalate " " $ map show [source, destination, ships]
 
--- | Finnish your turn
+-- | Finish your turn
 --
-finnishTurn :: IO ()   -- ^ Result
-finnishTurn = do
+finishTurn :: IO ()   -- ^ Result
+finishTurn = do
     putStrLn "go"
     hFlush stdout
 
@@ -159,7 +159,7 @@ bot f = ioBot $ mapM_ issueOrder . f
 
 -- | Run an IO bot. This is a more liberal version of 'bot', which allows you to
 -- work in the IO monad. However, you need to call 'issueOrder' yourself if you
--- use this function -- 'finnishTurn' will still be called automatically.
+-- use this function -- 'finishTurn' will still be called automatically.
 --
 ioBot :: (GameState -> IO ())  -- ^ Bot action
       -> IO ()                 -- ^ Blocks forever
@@ -173,7 +173,7 @@ ioBot f = do
             -- Go Go Go!
             then do
                 f state
-                finnishTurn
+                finishTurn
                 loop mempty
             -- Keep building map
             else loop (buildGameState state line)
