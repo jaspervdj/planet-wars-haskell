@@ -96,7 +96,7 @@ bot f = do
     loop mempty
   where
     loop state = do
-        line <- takeWhile (/= '#') <$> hGetLine stdin
+        line <- takeWhile (/= '#') <$> getLine
         if "go" `isPrefixOf` line
             -- Go Go Go!
             then do
