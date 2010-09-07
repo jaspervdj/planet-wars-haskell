@@ -17,10 +17,10 @@ doTurn state = if (null $ gameStateFleets state)
     else []
   where
     strongest = maximumBy (comparing planetShips)
-              $ filter ((== 1) . planetOwner)
+              $ filter isAlliedPlanet
               $ map snd $ IM.toList $ gameStatePlanets state
     weakest = minimumBy (comparing planetShips)
-              $ filter ((/= 1) . planetOwner)
+              $ filter (not . isAlliedPlanet)
               $ map snd $ IM.toList $ gameStatePlanets state
     ships = planetShips strongest `div` 2
 
