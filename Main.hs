@@ -17,7 +17,7 @@ doTurn state = if (null $ gameStateFleets state)
     else []
   where
     -- Partition all planets
-    (myPlanets, notMyPlanets) = partition isAlliedPlanet $
+    (myPlanets, notMyPlanets) = partition isAllied $
         map snd $ IM.toList $ gameStatePlanets state
 
     -- Find our strongest planet and the weakest neutral/hostile planet
