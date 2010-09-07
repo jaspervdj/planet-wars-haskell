@@ -1,10 +1,25 @@
+-- | Library for the Planet Wars google ai contest. More information can be
+-- found on http://ai-contest.com.
+--
 module PlanetWars
-    ( Planet (..)
+    ( 
+      -- * Data structures
+      Planet (..)
     , Fleet (..)
     , Order (..)
     , GameState (..)
-    , isMyPlanet
-    , addShips
+
+      -- * Utility functions
+    , isAlliedPlanet
+    , isHostilePlanet
+    , isNeutralPlanet
+    , engage
+
+      -- * Communication with the game engine
+    , issueOrder
+    , finnishTurn
+
+      -- * Bots
     , bot
     ) where
 
@@ -15,6 +30,8 @@ import Data.IntMap (IntMap)
 import qualified Data.IntMap as IM
 import System.IO
 
+-- | Representation of a planet
+--
 data Planet = Planet
     { planetId         :: Int
     , planetOwner      :: Int
@@ -24,6 +41,8 @@ data Planet = Planet
     , planetY          :: Double
     } deriving (Show)
 
+-- | Representation of a fleet
+--
 data Fleet = Fleet
     { fleetOwner          :: Int
     , fleetShips          :: Int
@@ -33,12 +52,15 @@ data Fleet = Fleet
     , fleetTurnsRemaining :: Int
     } deriving (Show)
 
+-- | Representation of an order
 data Order = Order
     { orderSource      :: Int
     , orderDestination :: Int
     , orderShips       :: Int
     } deriving (Show)
 
+-- | A data structure describing the game state
+--
 data GameState = GameState
     { gameStatePlanets :: IntMap Planet
     , gameStateFleets  :: [Fleet]
@@ -49,16 +71,13 @@ instance Monoid GameState where
     mappend (GameState p1 f1) (GameState p2 f2) =
         GameState (p1 `mappend` p2) (f1 `mappend` f2)
 
-issueOrder :: Order -> IO ()
-issueOrder (Order source destination ships) =
-    putStrLn $ intercalate " " $ map show [source, destination, ships]
-
-finnishTurn :: IO ()   -- ^ Result
-finnishTurn = do
-    putStrLn "go"
-    hFlush stdout
-
-buildGameState :: GameState -> String -> GameState
+-- | Auxiliary function for parsing the game state. This function takes an
+-- initial state, and a line. The line is parsed and content is applied on the
+-- given state. Folding with this function can produce the entire game state.
+--
+buildGameState :: GameState  -- ^ Initial game state
+               -> String     -- ^ Line to parse and apply
+               -> GameState  -- ^ Resulting game state
 buildGameState state string = case words string of
     ("P" : xs) ->
         let planet = Planet planetId'
@@ -83,14 +102,57 @@ buildGameState state string = case words string of
   where
     planetId' = IM.size $ gameStatePlanets state
 
-isMyPlanet :: Planet -> Bool
-isMyPlanet = (== 1) . planetOwner
+-- | Check if a given planet is allied
+--
+isAlliedPlanet :: Planet -> Bool
+isAlliedPlanet = (== 1) . planetOwner
 
-addShips :: Planet -> Int -> Planet
-addShips planet n = planet {planetShips = planetShips planet + n}
+-- | Check if a given planet is hostile
+--
+isHostilePlanet :: Planet -> Bool
+isHostilePlanet = (== 2) . planetOwner
 
-bot :: (GameState -> [Order])
-    -> IO ()
+-- | Check if a given planet is neutral
+--
+isNeutralPlanet :: Planet -> Bool
+isNeutralPlanet p = not (isAlliedPlanet p || isHostilePlanet p)
+
+-- | Attack the given planet with the given fleet (or reinforce it, when the
+-- planet is allied to the fleet)
+--
+engage :: Planet  -- ^ Planet to engage with
+       -> Fleet   -- ^ Fleet to user
+       -> Planet  -- ^ Resulting planet
+engage planet fleet
+    -- Reinforce the planet
+    | planetOwner planet == fleetOwner fleet =
+        planet {planetShips = planetShips planet + fleetShips fleet}
+    -- Attack the planet: planet was conquered
+    | shipsAfterAttack < 0 =
+        planet {planetShips = -shipsAfterAttack, planetOwner = fleetOwner fleet}
+    -- Attack failed
+    | otherwise = planet {planetShips = shipsAfterAttack}
+  where
+    shipsAfterAttack = planetShips planet - fleetShips fleet
+
+-- | Execute an order
+--
+issueOrder :: Order  -- ^ Order to execute
+           -> IO ()  -- ^ Result
+issueOrder (Order source destination ships) =
+    putStrLn $ intercalate " " $ map show [source, destination, ships]
+
+-- | Finnish your turn
+--
+finnishTurn :: IO ()   -- ^ Result
+finnishTurn = do
+    putStrLn "go"
+    hFlush stdout
+
+-- | Run a deterministic bot
+--
+bot :: (GameState -> [Order])  -- ^ Deterministic AI function
+    -> IO ()                   -- ^ Blocks forever
 bot f = do
     hSetBuffering stdin NoBuffering
     loop mempty

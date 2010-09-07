@@ -1,3 +1,5 @@
+-- | Example bot using the PlanetWars module
+--
 module Main where
 
 import Data.List (maximumBy, minimumBy)
