@@ -3,15 +3,17 @@ module PlanetWars
     , Fleet (..)
     , Order (..)
     , GameState (..)
+    , isMyPlanet
+    , addShips
     , bot
     ) where
 
 import Control.Applicative ((<$>))
 import Data.List (intercalate, isPrefixOf)
 import Data.Monoid (Monoid, mempty, mappend)
-import System.IO
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IM
+import System.IO
 
 data Planet = Planet
     { planetId         :: Int
@@ -80,6 +82,12 @@ buildGameState state string = case words string of
     _ -> state
   where
     planetId' = IM.size $ gameStatePlanets state
+
+isMyPlanet :: Planet -> Bool
+isMyPlanet = (== 1) . planetOwner
+
+addShips :: Planet -> Int -> Planet
+addShips planet n = planet {planetShips = planetShips planet + n}
 
 bot :: (GameState -> [Order])
     -> IO ()
