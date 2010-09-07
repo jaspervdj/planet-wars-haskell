@@ -21,6 +21,7 @@ module PlanetWars
 
       -- * Bots
     , bot
+    , ioBot
     ) where
 
 import Control.Applicative ((<$>))
@@ -53,6 +54,7 @@ data Fleet = Fleet
     } deriving (Show)
 
 -- | Representation of an order
+--
 data Order = Order
     { orderSource      :: Int
     , orderDestination :: Int
@@ -153,7 +155,15 @@ finnishTurn = do
 --
 bot :: (GameState -> [Order])  -- ^ Deterministic AI function
     -> IO ()                   -- ^ Blocks forever
-bot f = do
+bot f = ioBot $ mapM_ issueOrder . f
+
+-- | Run an IO bot. This is a more liberal version of 'bot', which allows you to
+-- work in the IO monad. However, you need to call 'issueOrder' yourself if you
+-- use this function -- 'finnishTurn' will still be called automatically.
+--
+ioBot :: (GameState -> IO ())  -- ^ Bot action
+      -> IO ()                 -- ^ Blocks forever
+ioBot f = do
     hSetBuffering stdin NoBuffering
     loop mempty
   where
@@ -162,7 +172,7 @@ bot f = do
         if "go" `isPrefixOf` line
             -- Go Go Go!
             then do
-                mapM_ issueOrder $ f state
+                f state
                 finnishTurn
                 loop mempty
             -- Keep building map
