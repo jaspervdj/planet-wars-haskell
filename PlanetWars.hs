@@ -14,8 +14,14 @@ module PlanetWars
     , isAllied
     , isHostile
     , isNeutral
-    , engage
+    , fleetIsArrived
+    , getPlanetById
     , distanceBetween
+
+      -- * Simulation
+    , engage
+    , engageMany
+    , modelStep
 
       -- * Communication with the game engine
     , issueOrder
@@ -91,7 +97,7 @@ instance Monoid GameState where
     mappend (GameState p1 f1) (GameState p2 f2) =
         GameState (p1 `mappend` p2) (f1 `mappend` f2)
 
--- | Find planet ib GameState
+-- | Find planet in GameState with given planetId
 --
 getPlanetById :: Int -> GameState -> Planet
 getPlanetById id state = (IM.!) (gameStatePlanets state) id
@@ -197,7 +203,7 @@ distanceBetween p1 p2 = let dx = planetX p1 - planetX p2
                             dist = sqrt $ dx * dx + dy * dy
                         in ceiling dist
 
--- | Process order - create a new fleet, does nothing if order is impossible
+-- | Aux: Process order - create a new fleet, does nothing if order is impossible
 --
 processOrder :: Order -> GameState -> GameState
 processOrder order state =
@@ -215,12 +221,12 @@ processOrder order state =
                      fleets'  = newFleet : (gameStateFleets state)
                  in GameState planets' fleets'
 
--- | Process a list of orders
+-- | Aux: Process a list of orders
 --
 processOrders :: [Order] -> GameState -> GameState
 processOrders = flip $ foldr $ processOrder
 
--- | Process one tick of timer: planets are growing and fleets are moving
+-- | Aux: Process one tick of timer: planets are growing and fleets are moving
 --
 processTick :: GameState -> GameState
 processTick state = GameState (IM.map grow1 (gameStatePlanets state)) (map move1 (gameStateFleets state))
@@ -236,7 +242,7 @@ partitionToIntMap fn as =
     let ins x = IM.insertWith (++) (fn x) [x]
     in  foldr ins IM.empty as
 
--- | Do all fights
+-- | Aux: Do all fights
 --
 fightAll :: GameState -> GameState
 fightAll state = 
@@ -250,9 +256,8 @@ fightAll state =
 
 -- | Simulate one step of a model
 --
-oneStep :: [Order] -> GameState -> GameState
-oneStep orders = fightAll . processTick . (processOrders orders)
-
+modelStep :: [Order] -> GameState -> GameState
+modelStep orders = fightAll . processTick . (processOrders orders)
 
 -- | Issue an order
 --
