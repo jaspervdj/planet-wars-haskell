@@ -98,7 +98,7 @@ buildGameState state string = case words string of
         let planet = Planet planetId'
                             (read $ xs !! 2)
                             (read $ xs !! 3)
-                            (read $ xs !! 5)
+                            (read $ xs !! 4)
                             (read $ xs !! 0)
                             (read $ xs !! 1)
         in state { gameStatePlanets = IM.insert planetId' planet
