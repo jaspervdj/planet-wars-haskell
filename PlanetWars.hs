@@ -131,12 +131,12 @@ isAllied = (== 1) . owner
 -- | Check if a given resource is hostile
 --
 isHostile :: Resource r => r -> Bool
-isHostile = (== 2) . owner
+isHostile = (>= 2) . owner
 
 -- | Check if a given resource is neutral
 --
 isNeutral :: Resource r => r -> Bool
-isNeutral p = not (isAllied p || isHostile p)
+isNeutral = (<= 0) . owner
 
 -- | Add (or subtract) a number of ships to (or from) a planet
 --
