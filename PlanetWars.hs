@@ -211,7 +211,8 @@ step state = state
     stepFleet fleet = fleet
         { fleetTurnsRemaining = fleetTurnsRemaining fleet - 1
         }
-    grow planet = addShips planet (planetGrowthRate planet)
+    grow planet | isNeutral planet = planet
+                | otherwise = addShips planet (planetGrowthRate planet)
 
 -- | Execute an order
 --
