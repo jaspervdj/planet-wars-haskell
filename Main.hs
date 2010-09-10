@@ -2,7 +2,7 @@
 --
 module Main where
 
-import Data.List (maximumBy, minimumBy)
+import Data.List (maximumBy, minimumBy, partition)
 import qualified Data.IntMap as IM
 import Data.Ord (comparing)
 
@@ -16,14 +16,17 @@ doTurn state = if (null myFleets)
     -- If we have a fleet in flight, just do nothing
     else []
   where
-    myFleets = filter ((== 1) . fleetOwner)
-              $ gameStateFleets state
-    strongest = maximumBy (comparing planetShips)
-              $ filter isAlliedPlanet
-              $ map snd $ IM.toList $ gameStatePlanets state
-    weakest = minimumBy (comparing planetShips)
-              $ filter (not . isAlliedPlanet)
-              $ map snd $ IM.toList $ gameStatePlanets state
+    myFleets = filter isAllied $ gameStateFleets state
+
+    -- Partition all planets
+    (myPlanets, notMyPlanets) = partition isAllied $
+        map snd $ IM.toList $ gameStatePlanets state
+
+    -- Find our strongest planet and the weakest neutral/hostile planet
+    strongest = maximumBy (comparing planetShips) myPlanets
+    weakest = minimumBy (comparing planetShips) notMyPlanets
+
+    -- Select half of the ships
     ships = planetShips strongest `div` 2
 
 main :: IO ()

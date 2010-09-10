@@ -4,16 +4,18 @@
 module PlanetWars
     ( 
       -- * Data structures
-      Planet (..)
+      Resource (..)
+    , Planet (..)
     , Fleet (..)
     , Order (..)
     , GameState (..)
 
       -- * Utility functions
-    , isAlliedPlanet
-    , isHostilePlanet
-    , isNeutralPlanet
+    , isAllied
+    , isHostile
+    , isNeutral
     , engage
+    , distanceBetween
 
       -- * Communication with the game engine
     , issueOrder
@@ -31,6 +33,11 @@ import Data.IntMap (IntMap)
 import qualified Data.IntMap as IM
 import System.IO
 
+-- | Class for values that are owned by a player
+--
+class Resource a where
+    owner :: a -> Int
+
 -- | Representation of a planet
 --
 data Planet = Planet
@@ -42,6 +49,9 @@ data Planet = Planet
     , planetY          :: Double
     } deriving (Show)
 
+instance Resource Planet where
+    owner = planetOwner
+
 -- | Representation of a fleet
 --
 data Fleet = Fleet
@@ -52,6 +62,9 @@ data Fleet = Fleet
     , fleetTripLength     :: Int
     , fleetTurnsRemaining :: Int
     } deriving (Show)
+
+instance Resource Fleet where
+    owner = fleetOwner
 
 -- | Representation of an order
 --
@@ -104,20 +117,20 @@ buildGameState state string = case words string of
   where
     planetId' = IM.size $ gameStatePlanets state
 
--- | Check if a given planet is allied
+-- | Check if a given resource is allied
 --
-isAlliedPlanet :: Planet -> Bool
-isAlliedPlanet = (== 1) . planetOwner
+isAllied :: Resource r => r -> Bool
+isAllied = (== 1) . owner
 
--- | Check if a given planet is hostile
+-- | Check if a given resource is hostile
 --
-isHostilePlanet :: Planet -> Bool
-isHostilePlanet = (== 2) . planetOwner
+isHostile :: Resource r => r -> Bool
+isHostile = (== 2) . owner
 
--- | Check if a given planet is neutral
+-- | Check if a given resource is neutral
 --
-isNeutralPlanet :: Planet -> Bool
-isNeutralPlanet p = not (isAlliedPlanet p || isHostilePlanet p)
+isNeutral :: Resource r => r -> Bool
+isNeutral p = not (isAllied p || isHostile p)
 
 -- | Attack the given planet with the given fleet (or reinforce it, when the
 -- planet is allied to the fleet)
@@ -127,15 +140,22 @@ engage :: Planet  -- ^ Planet to engage with
        -> Planet  -- ^ Resulting planet
 engage planet fleet
     -- Reinforce the planet
-    | planetOwner planet == fleetOwner fleet =
+    | owner planet == owner fleet =
         planet {planetShips = planetShips planet + fleetShips fleet}
     -- Attack the planet: planet was conquered
     | shipsAfterAttack < 0 =
-        planet {planetShips = -shipsAfterAttack, planetOwner = fleetOwner fleet}
+        planet {planetShips = -shipsAfterAttack, planetOwner = owner fleet}
     -- Attack failed
     | otherwise = planet {planetShips = shipsAfterAttack}
   where
     shipsAfterAttack = planetShips planet - fleetShips fleet
+
+-- | Find the distance between two planets
+--
+distanceBetween :: Planet -> Planet -> Double
+distanceBetween p1 p2 = let dx = planetX p1 - planetX p2
+                            dy = planetY p1 - planetY p2
+                        in sqrt $ dx * dx + dy * dy
 
 -- | Execute an order
 --
