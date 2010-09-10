@@ -80,12 +80,14 @@ doTurn :: Handle     -- ^ Handle to write to
        -> GameState  -- ^ Game state
        -> IO ()
 doTurn handle state = do
-    if (null $ gameStateFleets state)
+    if (null myFleets)
         -- Simple ai
         then issueOrder handle (planetId strongest) (planetId weakest) ships
         -- If we have a fleet in flight, just do nothing
         else return ()
   where
+    myFleets = filter ((== 1) . fleetOwner)
+              $ gameStateFleets state
     strongest = maximumBy (comparing planetShips)
               $ filter ((== 1) . planetOwner)
               $ map snd $ IM.toList $ gameStatePlanets state
