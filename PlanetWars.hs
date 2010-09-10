@@ -81,11 +81,15 @@ data Order = Order
     , orderShips       :: Int
     } deriving (Show)
 
--- | A data structure describing the game state
+-- | A data structure describing the game state.
+--
+-- * Planets are mapped by id
+--
+-- * Fleets are mapped by destination
 --
 data GameState = GameState
     { gameStatePlanets :: IntMap Planet
-    , gameStateFleets  :: [Fleet]
+    , gameStateFleets  :: IntMap Fleet
     } deriving (Show)
 
 instance Monoid GameState where
@@ -118,7 +122,8 @@ buildGameState state string = case words string of
                           (read $ xs !! 3)
                           (read $ xs !! 4)
                           (read $ xs !! 5)
-        in state { gameStateFleets = fleet : gameStateFleets state
+        in state { gameStateFleets = IM.insert (fleetDestination fleet)
+                                               fleet (gameStateFleets state)
                  }
     _ -> state
   where
@@ -165,10 +170,10 @@ engage planet fleet
 
 -- | Apply all fleets in the list to all planets
 --
-engageAll :: IntMap Planet -> [Fleet] -> IntMap Planet
-engageAll planets fleets = foldl engage' planets fleets
+engageAll :: IntMap Planet -> IntMap Fleet -> IntMap Planet
+engageAll planets fleets = IM.fold engage' planets fleets
   where
-    engage' planets' fleet = IM.update (return . flip engage fleet)
+    engage' fleet planets' = IM.update (return . flip engage fleet)
                                        (fleetDestination fleet)
                                        planets'
 
@@ -202,7 +207,7 @@ step state = state
     }
   where
     (ready, fleets') =
-        partition isArrived $ map stepFleet $ gameStateFleets state
+        IM.partition isArrived $ IM.map stepFleet $ gameStateFleets state
     stepFleet fleet = fleet
         { fleetTurnsRemaining = fleetTurnsRemaining fleet - 1
         }
