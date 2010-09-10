@@ -18,6 +18,7 @@ module PlanetWars
     , engage
     , engageAll
     , distanceBetween
+    , centroid
     , isArrived
 
       -- * Step the state
@@ -177,6 +178,15 @@ distanceBetween :: Planet -> Planet -> Double
 distanceBetween p1 p2 = let dx = planetX p1 - planetX p2
                             dy = planetY p1 - planetY p2
                         in sqrt $ dx * dx + dy * dy
+
+-- | Find the centroid of the given planets
+--
+centroid :: IntMap Planet -> (Double, Double)
+centroid planets = div' $ IM.fold add' (0, 0) planets
+  where
+    add' planet (x, y) = (x + planetX planet, y + planetY planet)
+    div' (x, y) = let size = fromIntegral $ IM.size planets
+                  in (x / size, y / size)
 
 -- | Check if a fleet has arrived
 --
