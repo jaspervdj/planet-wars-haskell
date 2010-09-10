@@ -89,7 +89,7 @@ data Order = Order
 --
 data GameState = GameState
     { gameStatePlanets :: IntMap Planet
-    , gameStateFleets  :: IntMap Fleet
+    , gameStateFleets  :: [Fleet]
     } deriving (Show)
 
 instance Monoid GameState where
@@ -122,8 +122,7 @@ buildGameState state string = case words string of
                           (read $ xs !! 3)
                           (read $ xs !! 4)
                           (read $ xs !! 5)
-        in state { gameStateFleets = IM.insert (fleetDestination fleet)
-                                               fleet (gameStateFleets state)
+        in state { gameStateFleets = fleet : gameStateFleets state
                  }
     _ -> state
   where
@@ -170,10 +169,10 @@ engage planet fleet
 
 -- | Apply all fleets in the list to all planets
 --
-engageAll :: IntMap Planet -> IntMap Fleet -> IntMap Planet
-engageAll planets fleets = IM.fold engage' planets fleets
+engageAll :: IntMap Planet -> [Fleet] -> IntMap Planet
+engageAll planets fleets = foldl engage' planets fleets
   where
-    engage' fleet planets' = IM.update (return . flip engage fleet)
+    engage' planets' fleet = IM.update (return . flip engage fleet)
                                        (fleetDestination fleet)
                                        planets'
 
@@ -198,6 +197,11 @@ centroid planets = div' $ IM.fold add' (0, 0) planets
 isArrived :: Fleet -> Bool
 isArrived = (== 0) . fleetTurnsRemaining
 
+-- | Check if a planet is under attack
+--
+isUnderAttack :: GameState -> Planet -> Bool
+isUnderAttack state planet = undefined
+
 -- | Step the game state for one turn
 --
 step :: GameState -> GameState
@@ -207,7 +211,7 @@ step state = state
     }
   where
     (ready, fleets') =
-        IM.partition isArrived $ IM.map stepFleet $ gameStateFleets state
+        partition isArrived $ map stepFleet $ gameStateFleets state
     stepFleet fleet = fleet
         { fleetTurnsRemaining = fleetTurnsRemaining fleet - 1
         }
