@@ -12,7 +12,7 @@ import PlanetWars
 
 doTurn :: GameState  -- ^ Game state
        -> IO ()      -- ^ Blocks forever
-doTurn state = when (null $ gameStateFleets state) $
+doTurn state = when (null myFleets) $
     unless (null myPlanets) $ do
     -- Random AI
     ndxSrc <- randomRIO (0, length myPlanets - 1)
@@ -24,6 +24,8 @@ doTurn state = when (null $ gameStateFleets state) $
     issueOrder $ Order (planetId source) (planetId destination) ships
 
   where
+    myFleets = filter isAllied $ gameStateFleets state
+
     -- Retrieve all planets
     planets = map snd $ IM.toList $ gameStatePlanets state
 
