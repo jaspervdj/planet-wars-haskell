@@ -10,12 +10,14 @@ import PlanetWars
 
 doTurn :: GameState  -- ^ Game state
        -> [Order]    -- ^ Orders
-doTurn state = if (null $ gameStateFleets state)
+doTurn state = if (null myFleets)
     -- Simple ai
     then [Order (planetId strongest) (planetId weakest) ships]
     -- If we have a fleet in flight, just do nothing
     else []
   where
+    myFleets = filter isAllied $ gameStateFleets state
+
     -- Partition all planets
     (myPlanets, notMyPlanets) = partition isAllied $
         map snd $ IM.toList $ gameStatePlanets state
