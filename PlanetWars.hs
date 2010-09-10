@@ -14,8 +14,14 @@ module PlanetWars
     , isAllied
     , isHostile
     , isNeutral
+    , addShips
     , engage
+    , engageAll
     , distanceBetween
+    , isArrived
+
+      -- * Step the state
+    , step
 
       -- * Communication with the game engine
     , issueOrder
@@ -27,7 +33,7 @@ module PlanetWars
     ) where
 
 import Control.Applicative ((<$>))
-import Data.List (intercalate, isPrefixOf)
+import Data.List (intercalate, isPrefixOf, partition)
 import Data.Monoid (Monoid, mempty, mappend)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IM
@@ -132,6 +138,13 @@ isHostile = (== 2) . owner
 isNeutral :: Resource r => r -> Bool
 isNeutral p = not (isAllied p || isHostile p)
 
+-- | Add (or subtract) a number of ships to (or from) a planet
+--
+addShips :: Planet  -- ^ Planet to add ships to
+         -> Int     -- ^ Number of ships to add
+         -> Planet  -- ^ Resulting planet
+addShips planet n = planet {planetShips = planetShips planet + n}
+
 -- | Attack the given planet with the given fleet (or reinforce it, when the
 -- planet is allied to the fleet)
 --
@@ -140,8 +153,7 @@ engage :: Planet  -- ^ Planet to engage with
        -> Planet  -- ^ Resulting planet
 engage planet fleet
     -- Reinforce the planet
-    | owner planet == owner fleet =
-        planet {planetShips = planetShips planet + fleetShips fleet}
+    | owner planet == owner fleet = addShips planet $ fleetShips fleet
     -- Attack the planet: planet was conquered
     | shipsAfterAttack < 0 =
         planet {planetShips = -shipsAfterAttack, planetOwner = owner fleet}
@@ -150,12 +162,41 @@ engage planet fleet
   where
     shipsAfterAttack = planetShips planet - fleetShips fleet
 
+-- | Apply all fleets in the list to all planets
+--
+engageAll :: IntMap Planet -> [Fleet] -> IntMap Planet
+engageAll planets fleets = foldl engage' planets fleets
+  where
+    engage' planets' fleet = IM.update (return . flip engage fleet)
+                                       (fleetDestination fleet)
+                                       planets'
+
 -- | Find the distance between two planets
 --
 distanceBetween :: Planet -> Planet -> Double
 distanceBetween p1 p2 = let dx = planetX p1 - planetX p2
                             dy = planetY p1 - planetY p2
                         in sqrt $ dx * dx + dy * dy
+
+-- | Check if a fleet has arrived
+--
+isArrived :: Fleet -> Bool
+isArrived = (== 0) . fleetTurnsRemaining
+
+-- | Step the game state for one turn
+--
+step :: GameState -> GameState
+step state = state
+    { gameStatePlanets = IM.map grow $ engageAll (gameStatePlanets state) ready
+    , gameStateFleets = fleets'
+    }
+  where
+    (ready, fleets') =
+        partition isArrived $ map stepFleet $ gameStateFleets state
+    stepFleet fleet = fleet
+        { fleetTurnsRemaining = fleetTurnsRemaining fleet - 1
+        }
+    grow planet = addShips planet (planetGrowthRate planet)
 
 -- | Execute an order
 --
