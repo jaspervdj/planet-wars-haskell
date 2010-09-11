@@ -22,6 +22,10 @@ module PlanetWars
     , isArrived
     , planets
     , production
+    , willSurviveAttack
+    , currentOwner
+    , planetsUnderAttack
+    , incomingFleets
 
       -- * Step the state
     , step
@@ -36,6 +40,7 @@ module PlanetWars
 
       -- * Debugging
     , stateFromFile
+    , unique
     ) where
 
 import Control.Applicative ((<$>))
@@ -43,6 +48,7 @@ import Data.List (intercalate, isPrefixOf, partition, foldl')
 import Data.Monoid (Monoid, mempty, mappend)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IM
+import qualified Data.IntSet as IS
 import System.IO
 
 -- | Class for values that are owned by a player
@@ -294,4 +300,45 @@ stateFromFile path = withFile path ReadMode (read mempty)
       if "go" `isPrefixOf` line
         then return state
         else read (buildGameState state line) handle
+
+-- | Checks if a planet will survive the incoming fleets. A planet survives if its
+-- owner is still the same after all known fleets arrive.
+--
+willSurviveAttack :: GameState -- ^ Initial game state
+                  -> Int       -- ^ Planet ID
+                  -> Bool      -- ^ Whether the planet survived
+willSurviveAttack state pid = survives state
+  where
+    originalOwner = currentOwner state pid
+    survives s = if null $ incomingFleets s pid
+      then currentOwner s pid == originalOwner
+      else survives $ step s
+
+-- | The owner of a planet in a given game state.
+--
+currentOwner :: GameState -- ^ Current game state
+             -> IM.Key    -- ^ Planet ID
+             -> Int       -- ^ Owner ID
+currentOwner state pid = owner $ gameStatePlanets state IM.! pid
+
+-- | List of planets under attack, i.e., that have incoming fleets.
+--
+planetsUnderAttack :: GameState -- ^ Game state to analyze
+                   -> [Int]     -- ^ List of IDs of planets under attack
+planetsUnderAttack = (map fleetDestination) . gameStateFleets
+
+-- | List of incoming fleets for a given planet in a certain game state.
+--
+incomingFleets :: GameState -- ^ Game state containing the current fleets
+               -> Int       -- ^ Planet ID
+               -> [Fleet]   -- ^ Incoming fleets
+incomingFleets state pid = filter pidMatches fleets
+  where
+    pidMatches = (== pid) . fleetDestination
+    fleets = gameStateFleets state
+
+-- | Removes duplicates from a list of Ints
+--
+unique :: [Int] -> [Int]
+unique = IS.toList . IS.fromList
 
