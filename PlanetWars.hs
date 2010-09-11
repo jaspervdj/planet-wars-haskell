@@ -20,6 +20,8 @@ module PlanetWars
     , distanceBetween
     , centroid
     , isArrived
+    , planets
+    , production
 
       -- * Step the state
     , step
@@ -31,10 +33,13 @@ module PlanetWars
       -- * Bots
     , bot
     , ioBot
+
+      -- * Debugging
+    , stateFromFile
     ) where
 
 import Control.Applicative ((<$>))
-import Data.List (intercalate, isPrefixOf, partition)
+import Data.List (intercalate, isPrefixOf, partition, foldl')
 import Data.Monoid (Monoid, mempty, mappend)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IM
@@ -202,6 +207,24 @@ isArrived = (== 0) . fleetTurnsRemaining
 isUnderAttack :: GameState -> Planet -> Bool
 isUnderAttack state planet = undefined
 
+-- | List of Planets from a game state.
+--
+planets :: GameState -- ^ Game state to analyze
+        -> [Planet]  -- ^ List of Planets
+planets state = map snd $ IM.toList $ gameStatePlanets state
+
+-- | Calculate the production (number of new ships in the next turn) of both
+-- players.
+--
+production :: GameState  -- ^ Game state to analyze
+           -> (Int, Int) -- ^ Pair having the player and enemy's production
+production g = foldl' prod (0,0) (planets g)
+  where 
+    prod (x,y) p = case planetOwner p of
+      0 -> (x,y)
+      1 -> (x + planetGrowthRate p, y)
+      2 -> (x, y + planetGrowthRate p)
+
 -- | Step the game state for one turn
 --
 step :: GameState -> GameState
@@ -258,3 +281,17 @@ ioBot f = do
                 loop mempty
             -- Keep building map
             else loop (buildGameState state line)
+
+-- | Read a game state from file. The format is the same as the server's output
+-- for a turn. Useful when debugging.
+--
+stateFromFile :: FilePath     -- ^ Path to the file containing the game state.
+              -> IO GameState -- ^ Parsed game state
+stateFromFile path = withFile path ReadMode (read mempty)
+  where
+    read state handle = do
+      line <- takeWhile (/= '#') <$> hGetLine handle
+      if "go" `isPrefixOf` line
+        then return state
+        else read (buildGameState state line) handle
+
