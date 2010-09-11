@@ -11,6 +11,8 @@ import PlanetWars
 doTurn :: GameState  -- ^ Game state
        -> [Order]    -- ^ Orders
 doTurn state = if null myFleets
+                  && (not . null) myPlanets
+                  && (not . null) notMyPlanets
     -- Simple ai
     then [Order (planetId strongest) (planetId weakest) ships]
     -- If we have a fleet in flight, just do nothing
