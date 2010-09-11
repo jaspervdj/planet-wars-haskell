@@ -23,6 +23,7 @@ module PlanetWars
     , isArrived
     , planets
     , production
+    , planetById
 
       -- * Step the state
     , step
@@ -41,6 +42,7 @@ module PlanetWars
 
 import Control.Applicative ((<$>))
 import Data.List (intercalate, isPrefixOf, partition, foldl')
+import Data.Maybe (fromJust)
 import Data.Monoid (Monoid, mempty, mappend)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IM
@@ -234,6 +236,11 @@ production g = foldl' prod (0,0) (planets g)
       0 -> (x,y)
       1 -> (x + planetGrowthRate p, y)
       2 -> (x, y + planetGrowthRate p)
+
+-- | Get a planet by ID. Make sure the ID exists!
+--
+planetById :: GameState -> Int -> Planet
+planetById state id' = fromJust $ IM.lookup id' $ gameStatePlanets state
 
 -- | Step the game state for one turn
 --
