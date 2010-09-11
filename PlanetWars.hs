@@ -1,6 +1,7 @@
 -- | Library for the Planet Wars google ai contest. More information can be
 -- found on http://ai-contest.com.
 --
+{-# LANGUAGE FlexibleInstances #-}
 module PlanetWars
     ( 
       -- * Data structures
@@ -50,6 +51,16 @@ import System.IO
 class Resource a where
     owner :: a -> Int
 
+-- | Class for physical entities
+--
+class Entity a where
+    getX :: a -> Double
+    getY :: a -> Double
+
+instance Entity (Double, Double) where
+    getX = fst
+    getY = snd
+
 -- | Representation of a planet
 --
 data Planet = Planet
@@ -63,6 +74,10 @@ data Planet = Planet
 
 instance Resource Planet where
     owner = planetOwner
+
+instance Entity Planet where
+    getX = planetX
+    getY = planetY
 
 -- | Representation of a fleet
 --
@@ -183,9 +198,9 @@ engageAll planets fleets = foldl engage' planets fleets
 
 -- | Find the distance between two planets
 --
-distanceBetween :: Planet -> Planet -> Double
-distanceBetween p1 p2 = let dx = planetX p1 - planetX p2
-                            dy = planetY p1 - planetY p2
+distanceBetween :: (Entity a, Entity b) => a -> b -> Double
+distanceBetween p1 p2 = let dx = getX p1 - getX p2
+                            dy = getY p1 - getY p2
                         in sqrt $ dx * dx + dy * dy
 
 -- | Find the centroid of the given planets
@@ -202,15 +217,10 @@ centroid planets = div' $ IM.fold add' (0, 0) planets
 isArrived :: Fleet -> Bool
 isArrived = (== 0) . fleetTurnsRemaining
 
--- | Check if a planet is under attack
---
-isUnderAttack :: GameState -> Planet -> Bool
-isUnderAttack state planet = undefined
-
 -- | List of Planets from a game state.
 --
-planets :: GameState -- ^ Game state to analyze
-        -> [Planet]  -- ^ List of Planets
+planets :: GameState  -- ^ Game state to analyze
+        -> [Planet]   -- ^ List of Planets
 planets state = map snd $ IM.toList $ gameStatePlanets state
 
 -- | Calculate the production (number of new ships in the next turn) of both
