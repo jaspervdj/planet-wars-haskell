@@ -12,10 +12,10 @@ import PlanetWars
 doTurn :: GameState  -- ^ Game state
        -> [Order]    -- ^ Orders
 doTurn state = do
+    guard $ not $ null enemyPlanets
     p <- myPlanets
     let ships = planetShips p
     guard $ ships >= 10 * planetGrowthRate p
-    guard $ not $ null enemyPlanets
     let closest = minimumBy (comparing $ distanceBetween p) enemyPlanets
     return $ Order (planetId p) (planetId closest) ships
   where
