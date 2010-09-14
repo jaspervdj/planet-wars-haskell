@@ -39,6 +39,7 @@ module PlanetWars
       -- * Bots
     , bot
     , ioBot
+    , debugBot
 
       -- * Debugging
     , stateFromFile
@@ -304,6 +305,29 @@ ioBot f = do
                 loop mempty
             -- Keep building map
             else loop (buildGameState state line)
+
+-- | Run a deterministic bot, dumping debug info
+--
+debugBot :: (GameState -> [Order])  -- ^ Deterministic AI function(
+         -> IO ()                   -- ^ Blocks forever
+debugBot f = do
+    h <- openFile "debug.log" WriteMode 
+    ioBot $ (run h)
+    hClose h
+  where
+    run h s = do
+        orders <- stateDump h s
+        dumpIssue h orders
+    dumpIssue log orders = do
+        hPutStrLn log "\nOrders:"
+        hPutStrLn log $ show orders
+        hFlush log
+        mapM_ issueOrder orders
+    stateDump log s = do
+        hPutStrLn log "\nState:"
+        hPutStrLn log $ show s
+        hFlush log
+        return $ f s
 
 -- | Read a game state from file. The format is the same as the server's output
 -- for a turn. Useful when debugging.
