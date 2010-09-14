@@ -52,12 +52,13 @@ module PlanetWars
     ) where
 
 import Control.Applicative ((<$>))
-import Data.List (intercalate, isPrefixOf, partition, foldl')
+import Data.List (intercalate, isPrefixOf, partition, foldl', sortBy)
 import Data.Maybe (fromJust)
 import Data.Monoid (Monoid, mempty, mappend)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IM
 import qualified Data.IntSet as IS
+import Data.Ord (comparing)
 import System.IO
 
 -- | Class for values that are owned by a player
@@ -302,11 +303,16 @@ engageMany planet fleets =
                 let (o,f) = head $ IM.assocs fleets
                 in planet {planetOwner=o, planetShips=f}
             | otherwise =
-                -- find the smallest fleet and reduce all fleets by its size
-                let minShips = minimum $ IM.elems fleets
-                    fleets' = IM.filter (>0) $ IM.map (+ (-minShips)) $ fleets
-                -- and go to the next round
-                in fight planet fleets'
+                -- Sort fleets, extract biggest two, calculate results
+                let fleets' = sortBy (flip $ comparing snd) $
+                        IM.assocs fleets
+                    (bigWinner:bigLoser:_) = fleets'
+                    remaining = snd bigWinner - snd bigLoser
+                    planet' = planet { planetShips = remaining }
+                -- Tie means ownership doesn't change.
+                in if remaining > 0
+                    then planet' { planetOwner = fst bigWinner }
+                    else planet'
 
 -- | Find the distance between two planets
 --
