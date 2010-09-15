@@ -16,8 +16,9 @@ module PlanetWars
     , isHostile
     , isNeutral
     , addShips
-    , engage
     , engageAll
+    , fleetIsArrived
+    , getPlanetById
     , distanceBetween
     , centroid
     , isArrived
@@ -31,6 +32,11 @@ module PlanetWars
 
       -- * Step the state
     , step
+
+      -- * Simulation
+    , engage
+    , engageMany
+    , modelStep
 
       -- * Communication with the game engine
     , issueOrder
@@ -47,12 +53,13 @@ module PlanetWars
     ) where
 
 import Control.Applicative ((<$>))
-import Data.List (intercalate, isPrefixOf, partition, foldl')
+import Data.List (intercalate, isPrefixOf, partition, foldl', sortBy)
 import Data.Maybe (fromJust)
 import Data.Monoid (Monoid, mempty, mappend)
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IM
 import qualified Data.IntSet as IS
+import Data.Ord (comparing)
 import System.IO
 
 -- | Class for values that are owned by a player
@@ -102,6 +109,11 @@ data Fleet = Fleet
 instance Resource Fleet where
     owner = fleetOwner
 
+-- | Check that fleet is arrived
+--
+fleetIsArrived :: Fleet -> Bool
+fleetIsArrived = (<=0) . fleetTurnsRemaining
+
 -- | Representation of an order
 --
 data Order = Order
@@ -125,6 +137,11 @@ instance Monoid GameState where
     mempty = GameState mempty mempty
     mappend (GameState p1 f1) (GameState p2 f2) =
         GameState (p1 `mappend` p2) (f1 `mappend` f2)
+
+-- | Find planet in GameState with given planetId
+--
+getPlanetById :: Int -> GameState -> Planet
+getPlanetById id state = (IM.!) (gameStatePlanets state) id
 
 -- | Auxiliary function for parsing the game state. This function takes an
 -- initial state, and a line. The line is parsed and content is applied on the
@@ -165,7 +182,7 @@ isAllied = (== 1) . owner
 -- | Check if a given resource is hostile
 --
 isHostile :: Resource r => r -> Bool
-isHostile = (>= 2) . owner
+isHostile = (> 1) . owner
 
 -- | Check if a given resource is neutral
 --
@@ -265,7 +282,102 @@ step state = state
     grow planet | isNeutral planet = planet
                 | otherwise = addShips planet (planetGrowthRate planet)
 
--- | Execute an order
+-- | Attack the given planet with several fleets
+-- The algorithm is compatible with this proposition: http://ai-contest.com/forum/viewtopic.php?f=18&t=419
+-- TODO: implement the original algorithm
+--
+engageMany :: Planet -> [Fleet] -> Planet 
+engageMany planet fleets =
+    fight planet (combine (extractFleet planet) fleets)
+    where
+        extractFleet planet = IM.singleton (owner planet) (planetShips planet)
+
+        combine fleets [] = fleets
+        combine fleets (f:rest) = combine (IM.insertWith (+) (owner f) (fleetShips f) fleets) rest
+
+        fight planet fleets
+            -- if no fleets left
+            | IM.null fleets =
+                planet {planetShips = 0}
+            -- if the only fleet left
+            | IM.size fleets == 1 =
+                let (o,f) = head $ IM.assocs fleets
+                in planet {planetOwner=o, planetShips=f}
+            | otherwise =
+                -- Sort fleets, extract biggest two, calculate results
+                let fleets' = sortBy (flip $ comparing snd) $
+                        IM.assocs fleets
+                    (bigWinner:bigLoser:_) = fleets'
+                    remaining = snd bigWinner - snd bigLoser
+                    planet' = planet { planetShips = remaining }
+                -- Tie means ownership doesn't change.
+                in if remaining > 0
+                    then planet' { planetOwner = fst bigWinner }
+                    else planet'
+
+-- | Find the distance between two planets
+--
+turnsBetween :: Planet -> Planet -> Int
+turnsBetween p1 p2 = let dist = distanceBetween p1 p2
+                        in ceiling dist
+
+-- | Aux: Process order - create a new fleet, does nothing if order is impossible
+--
+processOrder :: Order -> GameState -> GameState
+processOrder order state =
+    let planetSrc = getPlanetById (orderSource order) state
+        planetDst = getPlanetById (orderDestination order) state
+        player = planetOwner planetSrc
+        ships = orderShips order
+    in
+        if (isNeutral planetSrc) && ((planetShips planetSrc) < ships)
+            then state
+            else 
+                 let planets' = IM.insert (orderSource order) planetSrc{planetShips = (planetShips planetSrc)-ships} (gameStatePlanets state)
+                     newFleet = Fleet player ships (orderSource order) (orderDestination order) dist dist
+                     dist = turnsBetween planetSrc planetDst
+                     fleets'  = newFleet : (gameStateFleets state)
+                 in GameState planets' fleets'
+
+-- | Aux: Process a list of orders
+--
+processOrders :: [Order] -> GameState -> GameState
+processOrders = flip $ foldr $ processOrder
+
+-- | Aux: Process one tick of timer: planets are growing and fleets are moving
+--
+processTick :: GameState -> GameState
+processTick state = GameState (IM.map grow1 (gameStatePlanets state)) (map move1 (gameStateFleets state))
+    where
+        grow1 planet 
+            | isNeutral planet = planet
+            | otherwise = planet { planetShips = (planetShips planet + planetGrowthRate planet) }
+        move1 fleet = fleet { fleetTurnsRemaining = (fleetTurnsRemaining fleet - 1) }
+
+-- | Aux
+partitionToIntMap :: (a -> Int) -> [a] -> IntMap [a]
+partitionToIntMap fn as =
+    let ins x = IM.insertWith (++) (fn x) [x]
+    in  foldr ins IM.empty as
+
+-- | Aux: Do all fights
+--
+fightAll :: GameState -> GameState
+fightAll state = 
+    let arrivedFleets = filter fleetIsArrived (gameStateFleets state)
+        fleets' = filter (not . fleetIsArrived) (gameStateFleets state)
+        planets' = IM.map fightOverPlanet (gameStatePlanets state)
+            where 
+                fightOverPlanet planet =
+                    engageMany planet (filter ((== planetId planet) . fleetDestination) arrivedFleets)
+    in GameState planets' fleets'
+
+-- | Simulate one step of a model
+--
+modelStep :: [Order] -> GameState -> GameState
+modelStep orders = fightAll . processTick . (processOrders orders)
+
+-- | Issue an order
 --
 issueOrder :: Order  -- ^ Order to execute
            -> IO ()  -- ^ Result
