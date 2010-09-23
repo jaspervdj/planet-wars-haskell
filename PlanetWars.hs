@@ -32,10 +32,12 @@ module PlanetWars
 
       -- * Step the state
     , step
+    , stepAllFleets
 
       -- * Simulation
     , engage
     , engageMany
+    , turnsBetween
     , modelStep
 
       -- * Communication with the game engine
@@ -282,6 +284,10 @@ step state = state
     grow planet | isNeutral planet = planet
                 | otherwise = addShips planet (planetGrowthRate planet)
 
+stepAllFleets :: GameState -> GameState
+stepAllFleets state | null (gameStateFleets state) = state
+                    | otherwise = stepAllFleets $ step state
+
 -- | Attack the given planet with several fleets
 -- The algorithm is compatible with this proposition: http://ai-contest.com/forum/viewtopic.php?f=18&t=419
 -- TODO: implement the original algorithm
@@ -318,8 +324,7 @@ engageMany planet fleets =
 -- | Find the distance between two planets
 --
 turnsBetween :: Planet -> Planet -> Int
-turnsBetween p1 p2 = let dist = distanceBetween p1 p2
-                        in ceiling dist
+turnsBetween p1 = ceiling . distanceBetween p1
 
 -- | Aux: Process order - create a new fleet, does nothing if order is impossible
 --
