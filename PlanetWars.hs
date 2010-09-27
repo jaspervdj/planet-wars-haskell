@@ -63,6 +63,7 @@ import qualified Data.IntMap as IM
 import qualified Data.IntSet as IS
 import Data.Ord (comparing)
 import System.IO
+import System.IO.Error (isEOFError)
 
 -- | Class for values that are owned by a player
 --
@@ -410,7 +411,9 @@ ioBot :: (GameState -> IO ())  -- ^ Bot action
       -> IO ()                 -- ^ Blocks forever
 ioBot f = do
     hSetBuffering stdin NoBuffering
-    loop mempty
+    catch (loop mempty) $ \e -> if isEOFError e
+        then return ()
+        else ioError e
   where
     loop state = do
         line <- takeWhile (/= '#') <$> getLine
