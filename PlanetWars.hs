@@ -273,7 +273,7 @@ planetById state id' = fromJust $ IM.lookup id' $ gameStatePlanets state
 --
 step :: GameState -> GameState
 step state = state
-    { gameStatePlanets = IM.map grow $ engageAll (gameStatePlanets state) ready
+    { gameStatePlanets = engageAll (IM.map grow $ gameStatePlanets state) ready
     , gameStateFleets = fleets'
     }
   where
