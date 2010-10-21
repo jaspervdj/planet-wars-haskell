@@ -1,0 +1,21 @@
+Name:                planet-wars-client
+Version:             0.1
+Synopsis:            Graphical client for the Planet Wars challenge
+Description:         Graphical client to play the Planet Wars challenge.
+License:             BSD3
+License-file:        LICENSE
+Author:              Vo Minh Thu <noteed@gmail.com>
+Maintainer:          Vo Minh Thu <noteed@gmail.com>
+Stability:           Experimental
+Category:            Game
+Build-type:          Simple
+Extra-source-files:  README
+Cabal-version:       >=1.6
+
+executable planet-wars-client
+  main-is:            planet-wars-client.hs
+
+  build-depends:      base >= 4.0, containers, gtk, cairo
+
+  ghc-options:        -Wall
+                      -fno-warn-unused-do-bind
