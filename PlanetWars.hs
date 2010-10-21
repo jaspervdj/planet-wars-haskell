@@ -41,6 +41,7 @@ module PlanetWars
     , modelStep
 
       -- * Communication with the game engine
+    , newGameState
     , issueOrder
     , finishTurn
 
@@ -461,6 +462,15 @@ stateFromFile path = withFile path ReadMode (read mempty)
       if "go" `isPrefixOf` line
         then return state
         else read (buildGameState state line) handle
+
+newGameState :: IO GameState
+newGameState = loop mempty
+  where
+  loop state = do
+    line <- takeWhile (/= '#') `fmap` getLine
+    if "go" `isPrefixOf` line
+      then return state
+      else loop (buildGameState state line)
 
 -- | Checks if a planet will survive the incoming fleets. A planet survives if
 -- its owner is still the same after all known fleets arrive.
