@@ -12,7 +12,7 @@ import Graphics.Rendering.Cairo
 import Control.Concurrent
 
 import Data.Monoid (mempty)
-
+import Monad (foldM)
 import PlanetWars
 import PlanetWarsGraphics
 import Graphics
@@ -201,7 +201,7 @@ myLmbRelease x y s menu@(Menu ws _ _) = do
     Nothing -> return (orders s,game s)
     Just i -> case ws !! i of
       Button _ _ "next" -> do
-        mapM_ issueOrder (orders s)
+        foldM  issueOrder' (game s) (orders s)
         finishTurn
         gs <- newGameState
         return ([],gs)
