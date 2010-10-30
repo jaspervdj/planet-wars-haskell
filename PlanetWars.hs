@@ -394,9 +394,9 @@ issueOrder (Order source destination ships) =
 
 -- a safer issueOrder, which will issue only if
 -- the source planet has enough ships
-issueOrder' :: GameState -- ^ Order to execute
-            -> Order -- ^ GameState
-            -> IO GameState -- ^ Resultant GameState
+issueOrder' :: GameState     -- ^ GameState
+            -> Order         -- ^ Order to execute
+            -> IO GameState  -- ^ Resultant GameState
 issueOrder'  state order
   | (orderShips order)  <= planetShips (planetById state (orderSource order))  = do _ <- issueOrder order
                                                                                     return (processOrder order state) 
