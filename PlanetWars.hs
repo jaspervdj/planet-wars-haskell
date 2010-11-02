@@ -393,7 +393,7 @@ issueOrder (Order source destination ships) =
     putStrLn $ intercalate " " $ map show [source, destination, ships]
 
 -- a safer issueOrder, which will issue only if
--- the source planet has enough ships
+-- the source planet is yours, and has enough ships
 issueOrder' :: GameState     -- ^ GameState
             -> Order         -- ^ Order to execute
             -> IO GameState  -- ^ Resultant GameState
