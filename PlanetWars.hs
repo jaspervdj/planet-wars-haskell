@@ -398,8 +398,9 @@ issueOrder' :: GameState     -- ^ GameState
             -> Order         -- ^ Order to execute
             -> IO GameState  -- ^ Resultant GameState
 issueOrder'  state order
-  | (orderShips order)  <= planetShips (planetById state (orderSource order))  = do _ <- issueOrder order
-                                                                                    return (processOrder order state) 
+  | planetOwner (planetById state (orderSource order)) == 1 
+     && (orderShips order) <= planetShips (planetById state (orderSource order))  = do _ <- issueOrder order
+                                                                                       return (processOrder order state) 
   | otherwise = return state
 
 -- | Finish your turn
